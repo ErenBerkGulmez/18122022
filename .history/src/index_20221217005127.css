@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.Contanier {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    margin-left: -1px;
+    margin-top: -70px;
+}
+
+.Text {
+    border: 1px;
+    display: block;
+    font-size: 1.6em;
+    margin-top: 0.67em;
+    margin-bottom: 0.67em;
+    font-weight: bold;
+
+}

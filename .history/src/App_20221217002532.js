@@ -1,0 +1,107 @@
+import MicRecorder from "mic-recorder-to-mp3"
+import { useEffect, useState, useRef } from "react"
+import axios from "axios"
+import './index.css';
+
+  const assembly = axios.create({
+    baseURL: "https://api.assemblyai.com/v2",
+    headers: {
+      authorization: "0dabffb0c5044fd88510466a0e381932",
+      "content-type": "application/json",
+    },
+  })
+
+const App = () => {
+
+  const recorder = useRef(null) 
+  const audioPlayer = useRef(null) 
+  const [blobURL, setBlobUrl] = useState(null)
+  const [audioFile, setAudioFile] = useState(null)
+  const [isRecording, setIsRecording] = useState(null)
+
+  useEffect(() => {
+    recorder.current = new MicRecorder({ bitRate: 128 })
+  }, [])
+
+  const startRecording = () => {
+    recorder.current.start().then(() => {
+      setIsRecording(true)
+    })
+  }
+
+  const stopRecording = () => {
+    recorder.current
+      .stop()
+      .getMp3()
+      .then(([buffer, blob]) => {
+        const file = new File(buffer, "audio.mp3", {
+          type: blob.type,
+          lastModified: Date.now(),
+        })
+        const newBlobUrl = URL.createObjectURL(blob)
+        setBlobUrl(newBlobUrl)
+        setIsRecording(false)
+        setAudioFile(file)
+      })
+      .catch((e) => console.log(e))
+  }
+
+
+  const [uploadURL, setUploadURL] = useState("")
+  const [transcriptID, setTranscriptID] = useState("")
+  const [transcriptData, setTranscriptData] = useState("")
+  const [transcript, setTranscript] = useState("")
+
+  useEffect(() => {
+    if (audioFile) {
+      assembly
+        .post("/upload", audioFile)
+        .then((res) => setUploadURL(res.data.upload_url))
+        .catch((err) => console.error(err))
+    }
+  }, [audioFile])
+  const submitTranscriptionHandler = () => {
+    assembly
+      .post("/transcript", {
+        audio_url: uploadURL,
+        auto_highlights: true,
+        iab_categories: true,
+        sentiment_analysis: true
+      })
+      .then((res) => {
+        setTranscriptID(res.data.id)
+      })
+      .catch((err) => console.error(err))
+  }
+
+  const checkStatusHandler = async () => {
+    try {
+      await assembly.get(`/transcript/${transcriptID}`).then((res) => {
+        setTranscriptData(res.data)
+		setTranscript(transcriptData.text)
+      })
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  console.log(transcriptData)
+
+
+  return (
+    <div> <span class="">
+      <h1>Speech Recognition with Sentiment Analysis</h1>
+    </span>
+      <audio ref={audioPlayer} src={blobURL} controls='controls' />
+      <div>
+        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded" disabled={isRecording} onClick={startRecording}><svg class="fill-current w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M13 8V2H7v6H2l8 8 8-8h-5zM0 18h20v2H0v-2z"/></svg>START</button>
+        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded" disabled={!isRecording} onClick={stopRecording}>STOP</button>
+        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded" onClick={submitTranscriptionHandler}>SUBMIT</button>
+        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded" onClick={checkStatusHandler}>CHECK STATUS</button>
+        
+      </div>
+    </div>
+  )
+}
+
+export default App
